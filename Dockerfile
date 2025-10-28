@@ -14,7 +14,6 @@ RUN apk update && apk add --no-cache \
     libpng-dev \
     libjpeg-turbo-dev \
     libxml2-dev \
-    php8-calendar \
     composer \
     && rm -rf /var/cache/apk/*
 
@@ -27,8 +26,8 @@ RUN apk update && apk add --no-cache \
 # exif: leitura de metadados de imagem
 # opcache: cache de bytecode para PHP (performance)
 # imagick: manipulação avançada de imagens
-# calendar: necessário para khaled.alshamaa/ar-php (instalado via apk e habilitado por padrão)
-RUN docker-php-ext-install -j$(nproc) gd pdo_mysql zip xml mbstring exif opcache bcmath \
+# calendar: **CORRIGIDO: agora instalado via docker-php-ext-install**
+RUN docker-php-ext-install -j$(nproc) gd pdo_mysql zip xml mbstring exif opcache bcmath calendar \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && pecl install imagick \
     && docker-php-ext-enable imagick
