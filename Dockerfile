@@ -3,6 +3,7 @@ FROM php:8.2-fpm-alpine
 
 # 1. Atualiza a lista de pacotes e instala as dependências do sistema.
 # Inclui Nginx, Git, Supervisor, e as libs de desenvolvimento para GD, PostgreSQL, Imagemagick, Oniguruma (para mbstring) e libzip (para a extensão PHP zip).
+# AS NOVAS DEPENDÊNCIAS PARA A EXTENSÃO CALENDAR TAMBÉM SÃO ADICIONADAS.
 # As ferramentas de build (make, g++) são instaladas para a compilação das extensões PHP.
 RUN apk update && apk add --no-cache \
     nginx \
@@ -17,6 +18,8 @@ RUN apk update && apk add --no-cache \
     imagemagick-dev \
     oniguruma-dev \
     libzip-dev \
+    # Adicionando o pacote da extensão calendar
+    php82-calendar \
     make \
     g++ \
     && rm -rf /var/cache/apk/*
@@ -26,8 +29,8 @@ RUN docker-php-ext-configure gd --with-jpeg --with-freetype \
     && docker-php-ext-install -j$(nproc) gd
 
 # 3. Instala as outras extensões PHP necessárias
-# mbstring agora terá oniguruma-dev para sua compilação.
-RUN docker-php-ext-install -j$(nproc) pdo_mysql bcmath ctype exif intl mbstring opcache pdo zip
+# Note que a extensão 'calendar' foi adicionada aqui também.
+RUN docker-php-ext-install -j$(nproc) pdo_mysql bcmath ctype exif intl mbstring opcache pdo zip calendar
 
 # 4. Habilita a extensão opcache
 RUN docker-php-ext-enable opcache
