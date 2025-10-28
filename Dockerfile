@@ -14,6 +14,7 @@ RUN apk update && apk add --no-cache \
     libpng-dev \
     libjpeg-turbo-dev \
     libxml2-dev \
+    oniguruma-dev \
     composer \
     && rm -rf /var/cache/apk/*
 
@@ -22,7 +23,7 @@ RUN apk update && apk add --no-cache \
 # pdo_mysql: conexão com MySQL
 # zip: compressão/descompressão
 # xml: processamento de XML
-# mbstring: manipulação de strings multi-byte
+# mbstring: manipulação de strings multi-byte (agora com oniguruma-dev instalado)
 # exif: leitura de metadados de imagem
 # opcache: cache de bytecode para PHP (performance)
 # imagick: manipulação avançada de imagens
