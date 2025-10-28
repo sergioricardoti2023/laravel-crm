@@ -63,6 +63,10 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 COPY supervisord.conf /etc/supervisord.conf
 
+# *** ADICIONE ESTA LINHA AQUI ***
+# Cria o diretório de logs para o Supervisor
+RUN mkdir -p /var/log/supervisor
+
 # Expor a porta 80, que será usada pelo Nginx
 EXPOSE 80
 
