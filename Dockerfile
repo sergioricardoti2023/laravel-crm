@@ -1,74 +1,93 @@
-# Use uma imagem base PHP otimizada para web servers
-FROM php:8.2-fpm-alpine
+# --- Stage 1: Composer (para instalar dependências PHP) ---
+FROM composer:latest as composer-build
 
-# 1. Atualiza a lista de pacotes e instala as dependências do sistema.
-# Inclui Nginx, Git, Supervisor, e as libs de desenvolvimento para GD, PostgreSQL, Imagemagick, Oniguruma (para mbstring) e libzip (para a extensão PHP zip).
-# AS NOVAS DEPENDÊNCIAS PARA A EXTENSÃO CALENDAR TAMBÉM SÃO ADICIONADAS.
-# As ferramentas de build (make, g++) são instaladas para a compilação das extensões PHP.
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --optimize-autoloader
+
+# Copia o restante dos arquivos do projeto
+COPY . .
+# Geração do autoloader para classes
+RUN composer dump-autoload --optimize
+
+# --- Stage 2: Aplicação Final ---
+FROM php:8.1-fpm-alpine
+
+# Instalação de dependências do sistema
+# nginx: servidor web
+# supervisor: gerenciador de processos
+# openssl-dev: para extensões PHP como pdo_mysql
+# git: para instalações via composer/repositórios
+# wget: ferramenta para download
+# build-base: para compilação de pacotes
+# imagemagick-dev: para a extensão imagick (opcional, mas comum para imagem)
+# libzip-dev: para a extensão zip
+# freetype-dev, libpng-dev, libjpeg-turbo-dev: para a extensão gd
+# libxml2-dev: para a extensão xml
 RUN apk update && apk add --no-cache \
     nginx \
-    git \
     supervisor \
-    zlib-dev \
-    libjpeg-turbo-dev \
-    libpng-dev \
-    freetype-dev \
-    postgresql-dev \
-    mysql-client \
+    openssl-dev \
+    git \
+    wget \
+    build-base \
     imagemagick-dev \
-    oniguruma-dev \
     libzip-dev \
-    # Adicionando o pacote da extensão calendar
-    php82-calendar \
-    make \
-    g++ \
+    freetype-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    libxml2-dev \
     && rm -rf /var/cache/apk/*
 
-# 2. Configura e instala a extensão GD (para processamento de imagens)
-RUN docker-php-ext-configure gd --with-jpeg --with-freetype \
-    && docker-php-ext-install -j$(nproc) gd
+# Instalação das extensões PHP
+# gd: manipulação de imagens
+# pdo_mysql: conexão com MySQL
+# zip: compressão/descompressão
+# xml: processamento de XML
+# mbstring: manipulação de strings multi-byte
+# exif: leitura de metadados de imagem
+# opcache: cache de bytecode para PHP (performance)
+# imagick: manipulação avançada de imagens
+RUN docker-php-ext-install -j$(nproc) gd pdo_mysql zip xml mbstring exif opcache \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) gd \
+    && docker-php-ext-install -j$(nproc) bcmath \
+    && pecl install imagick \
+    && docker-php-ext-enable imagick
 
-# 3. Instala as outras extensões PHP necessárias
-# Note que a extensão 'calendar' foi adicionada aqui também.
-RUN docker-php-ext-install -j$(nproc) pdo_mysql bcmath ctype exif intl mbstring opcache pdo zip calendar
+# Configuração do Opcache (opcional, mas recomendado para performance)
+COPY opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
-# 4. Habilita a extensão opcache
-RUN docker-php-ext-enable opcache
-
-# 5. Remove as ferramentas de build (make, g++) para reduzir o tamanho final da imagem Docker.
-RUN apk del make g++
-
-# Configurar diretório de trabalho da aplicação
-WORKDIR /var/www/html
-
-# Copiar arquivos da aplicação para o container
-# Certifique-se de que o seu arquivo .dockerignore esteja configurado para ignorar arquivos desnecessários como node_modules, .git, etc.
-COPY . .
-
-# Instalar dependências do Composer
-# Usamos uma imagem "composer:latest" para obter o executável do Composer, garantindo que seja uma versão atualizada.
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-RUN composer install --no-dev --optimize-autoloader --no-scripts
-
-# Limpar caches de configuração do Laravel
-# Estes comandos devem ser executados após o 'composer install' para garantir que as configurações sejam carregadas corretamente.
-RUN php artisan cache:clear && \
-    php artisan view:clear && \
-    php artisan config:clear && \
-    php artisan route:clear
-
-# Copiar configurações de Nginx, PHP-FPM e Supervisor
-# Estes arquivos devem estar na mesma pasta do Dockerfile.
+# Copiar arquivos de configuração customizados
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY supervisord.conf /etc/supervisor/supervisord.conf
+# O php-fpm.conf customizado para logs (renomeando para www.conf)
 COPY php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
-COPY supervisord.conf /etc/supervisord.conf
 
-# *** ADICIONE ESTA LINHA AQUI ***
-# Cria o diretório de logs para o Supervisor
+# Criar diretório para logs do Supervisor
 RUN mkdir -p /var/log/supervisor
 
-# Expor a porta 80, que será usada pelo Nginx
+# Diretório de trabalho da aplicação
+WORKDIR /var/www/html
+
+# Copiar os arquivos da aplicação
+COPY . .
+
+# Copiar as dependências do Composer do stage anterior
+COPY --from=composer-build /app/vendor /var/www/html/vendor
+
+# Definir permissões para os diretórios do Laravel/Krayin
+# O usuário padrão do Nginx/PHP-FPM em Alpine é 'nginx' ou 'nobody'.
+# Vamos usar o UID/GID do usuário padrão do FPM no Alpine, que geralmente é 82 para 'nginx'
+# ou 'nobody' (65534). Usar `nginx` é um bom palpite inicial.
+# Se o problema persistir, podemos tentar `chown -R 65534:65534 /var/www/html`
+RUN chown -R nginx:nginx /var/www/html \
+    && chmod -R 775 /var/www/html/storage \
+    && chmod -R 775 /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/public
+
+# Expor a porta que o Nginx está ouvindo
 EXPOSE 80
 
-# Comando principal para iniciar o Supervisor, que por sua vez iniciará Nginx e PHP-FPM
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+# Comando para iniciar o Supervisor que gerenciará Nginx e PHP-FPM
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
