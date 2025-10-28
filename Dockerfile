@@ -1,4 +1,6 @@
-dockerfile # Use uma imagem base PHP otimizada para web servers FROM php:8.2-fpm-alpine
+# Use uma imagem base PHP otimizada para web servers
+FROM php:8.2-fpm-alpine
+# O restante do seu Dockerfile...
 
 # Instalar dependências do sistema e extensões PHP
 # (Ajuste conforme as necessidades do Krayin CRM e Laravel)
