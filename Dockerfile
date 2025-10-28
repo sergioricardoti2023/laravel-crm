@@ -56,7 +56,7 @@ RUN docker-php-ext-install -j$(nproc) gd pdo_mysql zip xml mbstring exif opcache
     && docker-php-ext-enable imagick
 
 # Configuração do Opcache (opcional, mas recomendado para performance)
-COPY opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+#COPY opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 # Copiar arquivos de configuração customizados
 COPY nginx.conf /etc/nginx/nginx.conf
