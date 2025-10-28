@@ -2,7 +2,7 @@
 FROM php:8.2-fpm-alpine
 
 # 1. Atualiza a lista de pacotes e instala as dependências do sistema.
-# Inclui Nginx, Git, Supervisor, e as libs de desenvolvimento para GD, PostgreSQL, Imagemagick e Oniguruma (para mbstring).
+# Inclui Nginx, Git, Supervisor, e as libs de desenvolvimento para GD, PostgreSQL, Imagemagick, Oniguruma (para mbstring) e libzip (para a extensão PHP zip).
 # As ferramentas de build (make, g++) são instaladas para a compilação das extensões PHP.
 RUN apk update && apk add --no-cache \
     nginx \
@@ -16,6 +16,7 @@ RUN apk update && apk add --no-cache \
     mysql-client \
     imagemagick-dev \
     oniguruma-dev \
+    libzip-dev \
     make \
     g++ \
     && rm -rf /var/cache/apk/*
